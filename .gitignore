@@ -1,0 +1,5 @@
+*wav
+*mp3
+*.txt
+!requirements.txt
+secrets_.py
