@@ -7,15 +7,13 @@ from pathlib import Path
 import librosa
 import numpy as np
 import sounddevice as sd
+import torch
 import whisper
 
 from audio_util import DeviceUtil, AudioEditor
 
-# Audio params
+# config
 SAMPLE_RATE = 44100
-# REC_CHANNELS = 2
-# DURATION_SEC = 10
-
 WHISPER_SAMPLE_RATE = 16000  # 16kHz
 WHISPER_CHANNELS = 1
 CHUNK_DURATION_SEC = 5  # x seconds at a time
@@ -25,8 +23,10 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
 
 LANG = 'en'
-model_name = "small"  # sometimes better than small.en
-model = whisper.load_model(model_name).to('cuda')
+model_name = "small.en"  # sometimes small is better than small.en
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+model = whisper.load_model(model_name).to(device)
+logger.info(f"model: {model_name}, device: {device}")
 
 audio_queue = queue.Queue()
 transcription_queue = queue.Queue()
@@ -38,6 +38,8 @@ class DeviceIds:
     MIC = 1
     LOOPBACK = 16
 
+
+###########
 
 def transcribe_audio():
     """transcribe audio chunks from queue"""
@@ -52,7 +54,7 @@ def transcribe_audio():
         if len(audio_data) > 0:
             audio_np = np.array(audio_data)
 
-            # convert, normalize for Whisper
+            # convert to mono channel, resample
             audio_mono = np.mean(audio_np, axis=1)
             audio_resampled = librosa.resample(audio_mono, orig_sr=SAMPLE_RATE, target_sr=WHISPER_SAMPLE_RATE)
 
@@ -67,7 +69,7 @@ def transcribe_audio():
                 print(result['text'])
 
 
-def record_and_transcribe(duration, device_id):
+def record_and_transcribe_real_time(duration, device_id):
     """real time (less accurate)"""
 
     def audio_callback(indata, frames, time, status):
@@ -97,15 +99,26 @@ def record_and_transcribe(duration, device_id):
 
 ###########
 
-def transcribe_file(audio_file, output_file=None):
+def transcribe_file(audio_file, output_file=None, show_timestamps=False):
     logger.info(f"transcribing {audio_file}...")
     result = model.transcribe(audio_file, language=LANG, verbose=True if logger.level == logging.DEBUG else False)
-    # print(result)
-    print(result["text"])
 
-    if output_file:
-        Path(output_file).write_text(result["text"])
-        logger.info(f"transcript saved as '{output_file}'")
+    result_str = result["text"]
+    if show_timestamps:
+        def format_timestamp(seconds):
+            minutes, seconds = divmod(int(seconds), 60)
+            return f"{minutes:02}:{seconds:02}"
+
+        res_list = []
+        for segment in result["segments"]:
+            line = f"{format_timestamp(segment['start'])} - {format_timestamp(segment['end'])}: {segment['text']}"
+            res_list.append(line)
+            # print(line)
+        result_str = "\n".join(res_list)
+
+    out_file = output_file or Path(audio_file).stem + ".txt"
+    Path(out_file).write_text(result_str)
+    logger.info(f"saved as: '{out_file}'")
 
 
 def transcribe_file_segment(audio_file, start_time_str=None, end_time_str=None, output_file=None):
@@ -122,18 +135,15 @@ def transcribe_file_segment(audio_file, start_time_str=None, end_time_str=None, 
 
 
 if __name__ == "__main__":
-    wav_file = "p_eng.mp3"
-    # wav_file = "p_heb.mp3"
-    # out_filename = audio_segment(wav_file)
-    # transcribe_file(out_filename)
-    #
-    # exit(0)
+    sound_file = 'warren.wav'
 
     device_id = DeviceIds.LOOPBACK
 
     # Record and transcribe
-    record_and_transcribe(60 * 3, device_id)
+    # record_and_transcribe_real_time(60 * 3, device_id)
 
-    # transcribe_file(wav_file, 'out.txt')
-    # AudioEditor.audio_segment(wav_file, "10:00", "15:00")
-    # transcribe_file_segment(wav_file, "8:00", "15:00", 'out-8-15.txt')
+    sound_file = "audio_20241001.wav"
+    # transcribe_file(sound_file, show_timestamps=True)
+    transcribe_file(sound_file)
+    # AudioEditor.audio_segment(sound_file, "10:00", "15:00")
+    # transcribe_file_segment(sound_file, "8:00", "15:00", 'out-8-15.txt')

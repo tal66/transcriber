@@ -3,6 +3,7 @@ import logging
 import queue
 import threading
 import wave
+from pathlib import Path
 
 import numpy as np
 import sounddevice as sd
@@ -14,7 +15,7 @@ SAMPLE_RATE = 44100
 REC_CHANNELS = 1
 
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
 
 def get_now_str():
     now = datetime.datetime.now()
@@ -141,14 +142,14 @@ class AudioPlayer:
     device_id = None
 
     @staticmethod
-    def play_file_simple(wav_file):
+    def play_file(wav_file):
         logger.info(f"playing {wav_file}...")
         data, fs = sf.read(wav_file)
         sd.play(data, fs)
         sd.wait()
 
     @classmethod
-    def play_file(cls, filename):
+    def play_file_low_level(cls, filename):
         """
         low level play file
         https://python-sounddevice.readthedocs.io/en/0.5.0/examples.html#play-a-sound-file
@@ -192,14 +193,22 @@ class AudioPlayer:
 
 class AudioEditor:
     @staticmethod
-    def audio_segment(audio_file, start_time_str="5:00", end_time_str=None):
+    def audio_segment(audio_file, start_time_str="00:00", end_time_str=None, output_ext="wav") -> str:
 
         logger.info(f"segmenting '{audio_file}' {start_time_str}-{end_time_str}...")
 
-        def to_ms(time_str):
-            """ example: 1:10 -> 70 * 1000 ms """
-            minutes, seconds = map(int, time_str.split(':'))
-            return (minutes * 60 + seconds) * 1000
+        def to_ms(time_str: str) -> int:
+            """ (HH:MM:SS or MM:SS) to milliseconds"""
+            parts = time_str.split(':')
+
+            if len(parts) == 3:
+                hours, minutes, seconds = map(int, parts)
+                return (hours * 3600 + minutes * 60 + seconds) * 1000
+            elif len(parts) == 2:
+                minutes, seconds = map(int, parts)
+                return (minutes * 60 + seconds) * 1000
+            else:
+                raise ValueError("invalid time format. expecting 'MM:SS' or 'HH:MM:SS'.")
 
         audio = AudioSegment.from_file(audio_file)
 
@@ -212,6 +221,10 @@ class AudioEditor:
             end_time = len(audio)  # default
         else:
             end_time = to_ms(end_time_str)
+
+        if not start_time:
+            start_time = 0
+
         if end_time <= start_time:
             raise ValueError(f"end_time <= start_time. start: {start_time}, end: {end_time}")
         # if end_time > len(audio) : goes until end
@@ -221,8 +234,8 @@ class AudioEditor:
         audio_segment = audio[start_time:end_time]
 
         # save
-        out_filename = f"segment_{get_now_str()}.wav"
-        audio_segment.export(out_filename, format="wav")
+        out_filename = f"segment_{start_time}_{end_time}_{Path(audio_file).stem}.{output_ext}"
+        audio_segment.export(out_filename, format=output_ext)
 
         logger.info(f"segment saved as '{out_filename}'")
         return out_filename
@@ -238,4 +251,5 @@ if __name__ == '__main__':
 
     # record and play
     # rec_filename = AudioRecorder.record_unlimited(loopback_device_id)
-    # AudioPlayer.play_file_simple(rec_filename)
+    # AudioPlayer.play_file(rec_filename)
+    AudioEditor.audio_segment('rec.wav')
