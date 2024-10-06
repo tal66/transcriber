@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 DB_ENABLED = False
 try:
     import src.db as db
-    db.client.admin.command('ping')
+
     DB_ENABLED = True
     logger.info("MongoDB enabled")
 except Exception as e:
     db = None
     logger.error("MongoDB disabled")
-    logger.error(e, exc_info=True)
+    logger.error(e)
 
 app = Flask(__name__)
 

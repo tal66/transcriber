@@ -6,7 +6,8 @@ from src.settings import CONN_STRING
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-client = MongoClient(CONN_STRING)
+client = MongoClient(CONN_STRING, connectTimeoutMS=4_000, serverSelectionTimeoutMS=3_000)
+client.admin.command('ping')
 db = client['transcribe_db']
 transcripts_collection = db['transcripts']
 transcripts_collection.create_index([('title', 'text'), ('content', 'text')])
