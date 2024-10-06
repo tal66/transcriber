@@ -10,17 +10,11 @@ import sounddevice as sd
 import soundfile as sf
 from pydub import AudioSegment
 
-# Audio params
 SAMPLE_RATE = 44100
 REC_CHANNELS = 1
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
-
-def get_now_str():
-    now = datetime.datetime.now()
-    now_str = now.strftime('%Y%m%d_%H%M%S')
-    return now_str
 
 
 class DeviceUtil:
@@ -197,23 +191,14 @@ class AudioEditor:
 
         logger.info(f"segmenting '{audio_file}' {start_time_str}-{end_time_str}...")
 
-        def to_ms(time_str: str) -> int:
-            """ (HH:MM:SS or MM:SS) to milliseconds"""
-            parts = time_str.split(':')
-
-            if len(parts) == 3:
-                hours, minutes, seconds = map(int, parts)
-                return (hours * 3600 + minutes * 60 + seconds) * 1000
-            elif len(parts) == 2:
-                minutes, seconds = map(int, parts)
-                return (minutes * 60 + seconds) * 1000
-            else:
-                raise ValueError("invalid time format. expecting 'MM:SS' or 'HH:MM:SS'.")
-
         audio = AudioSegment.from_file(audio_file)
 
         # times
-        start_time = to_ms(start_time_str)
+        if not start_time_str:
+            start_time = 0
+        else:
+            start_time = to_ms(start_time_str)
+
         if start_time > len(audio):
             raise ValueError(f"start_time > audio duration. start: {start_time} ms, audio duration: {len(audio)} ms")
 
@@ -222,12 +207,9 @@ class AudioEditor:
         else:
             end_time = to_ms(end_time_str)
 
-        if not start_time:
-            start_time = 0
-
         if end_time <= start_time:
             raise ValueError(f"end_time <= start_time. start: {start_time}, end: {end_time}")
-        # if end_time > len(audio) : goes until end
+        # if end_time > len(audio): until end
 
         # segment
         logger.info(f"audio duration: {len(audio) / 1000} s -> {(end_time - start_time) / 1000} s")
@@ -241,6 +223,32 @@ class AudioEditor:
         return out_filename
 
 
+def to_ms(time_str: str) -> int:
+    """ (HH:MM:SS or MM:SS) to milliseconds"""
+    parts = time_str.split(':')
+
+    if len(parts) == 3:
+        hours, minutes, seconds = map(int, parts)
+        return (hours * 3600 + minutes * 60 + seconds) * 1000
+    elif len(parts) == 2:
+        minutes, seconds = map(int, parts)
+        return (minutes * 60 + seconds) * 1000
+    else:
+        raise ValueError(f"invalid time format. expecting 'MM:SS' or 'HH:MM:SS'. got '{time_str}'")
+
+
+def to_str_hhmmss(seconds: int):
+    hours, minutes = divmod(int(seconds), 3600)
+    minutes, seconds = divmod(minutes, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def get_now_str():
+    now = datetime.datetime.now()
+    now_str = now.strftime('%Y%m%d_%H%M%S')
+    return now_str
+
+
 if __name__ == '__main__':
     mic_device_id = DeviceUtil.find_microphone_device(DeviceUtil.devices)
     speakers_device_id = DeviceUtil.find_output_device()
@@ -249,7 +257,4 @@ if __name__ == '__main__':
     AudioPlayer.device_id = speakers_device_id
     AudioRecorder.device_id = mic_device_id
 
-    # record and play
-    # rec_filename = AudioRecorder.record_unlimited(loopback_device_id)
-    # AudioPlayer.play_file(rec_filename)
-    AudioEditor.audio_segment('rec.wav')
+    # AudioEditor.audio_segment('rec.wav')

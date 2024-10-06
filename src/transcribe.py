@@ -1,6 +1,7 @@
 import logging
 import os
 import queue
+import re
 import threading
 from pathlib import Path
 
@@ -10,14 +11,14 @@ import sounddevice as sd
 import torch
 import whisper
 
-from audio_util import DeviceUtil, AudioEditor
+from src.audio_util import DeviceUtil, AudioEditor, to_str_hhmmss
+from src.settings import TEMP_FILES_DIR, LOOPBACK_DEVICE_ID
 
 # config
 SAMPLE_RATE = 44100
 WHISPER_SAMPLE_RATE = 16000  # 16kHz
 WHISPER_CHANNELS = 1
 CHUNK_DURATION_SEC = 5  # x seconds at a time
-# OVERLAP_SEC = 0.5  # overlap between chunks
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
@@ -32,14 +33,6 @@ audio_queue = queue.Queue()
 transcription_queue = queue.Queue()
 devices = DeviceUtil.list_audio_devices()
 
-
-class DeviceIds:
-    """my settings. ids are from DeviceUtil.list_audio_devices()"""
-    MIC = 1
-    LOOPBACK = 16
-
-
-###########
 
 def transcribe_audio():
     """transcribe audio chunks from queue"""
@@ -99,51 +92,46 @@ def record_and_transcribe_real_time(duration, device_id):
 
 ###########
 
-def transcribe_file(audio_file, output_file=None, show_timestamps=False):
-    logger.info(f"transcribing {audio_file}...")
+def transcribe_file(audio_file, show_timestamps=False):
+    logger.info(f"transcribing '{audio_file}'...")
     result = model.transcribe(audio_file, language=LANG, verbose=True if logger.level == logging.DEBUG else False)
 
     result_str = result["text"]
     if show_timestamps:
-        def format_timestamp(seconds):
-            minutes, seconds = divmod(int(seconds), 60)
-            return f"{minutes:02}:{seconds:02}"
 
         res_list = []
         for segment in result["segments"]:
-            line = f"{format_timestamp(segment['start'])} - {format_timestamp(segment['end'])}: {segment['text']}"
+            line = f"{to_str_hhmmss(segment['start'])} - {to_str_hhmmss(segment['end'])}: {segment['text']}"
             res_list.append(line)
-            # print(line)
         result_str = "\n".join(res_list)
 
-    out_file = output_file or Path(audio_file).stem + ".txt"
+    out_file = f"{TEMP_FILES_DIR}/t_{Path(audio_file).stem}.txt"
+    out_file = re.sub(r'[<>!^&*@#$+`]', '', out_file)
+    out_file = re.sub(r'[:：]', '_', out_file)
+
     Path(out_file).write_text(result_str)
     logger.info(f"saved as: '{out_file}'")
+    return out_file
 
 
-def transcribe_file_segment(audio_file, start_time_str=None, end_time_str=None, output_file=None):
-    if not start_time_str:
-        transcribe_file(audio_file, output_file)
-        return
+def transcribe_file_segment(audio_file, start_time_str=None, end_time_str=None, show_timestamps=False):
+    if (not start_time_str) and (not end_time_str):
+        out_file = transcribe_file(audio_file, show_timestamps)
+        return out_file
 
     logger.debug(f"creating temp segment file...")
     segment_file = AudioEditor.audio_segment(audio_file, start_time_str, end_time_str)
-    transcribe_file(segment_file, output_file)
+    out_file = transcribe_file(segment_file, show_timestamps)
 
     logger.debug(f"rm segment file '{segment_file}'")
     os.remove(segment_file)
+    return out_file
 
 
 if __name__ == "__main__":
-    sound_file = 'warren.wav'
-
-    device_id = DeviceIds.LOOPBACK
+    device_id = LOOPBACK_DEVICE_ID
 
     # Record and transcribe
-    # record_and_transcribe_real_time(60 * 3, device_id)
+    record_and_transcribe_real_time(60 * 2, device_id)
 
-    sound_file = "audio_20241001.wav"
-    # transcribe_file(sound_file, show_timestamps=True)
-    transcribe_file(sound_file)
-    # AudioEditor.audio_segment(sound_file, "10:00", "15:00")
-    # transcribe_file_segment(sound_file, "8:00", "15:00", 'out-8-15.txt')
+    # transcribe_file_segment(file, "8:00", "15:00")
