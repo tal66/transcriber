@@ -45,7 +45,7 @@ def transcribe_and_diarize(filename: str, end_time_str=None, num_speakers=None):
     if end_time_str:
         filename = AudioEditor.audio_segment(filename, end_time_str=end_time_str)
 
-    # transcription
+    # transcribe
     result_file = f"./temp/t_result_{Path(filename).stem}.txt"
     if not Path(result_file).exists():
         logger.info(f"transcribing '{filename}'...")

@@ -3,3 +3,5 @@
 *.txt
 !requirements.txt
 secrets_.py
+youtube_lib.py
+web-pod/
