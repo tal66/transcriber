@@ -30,6 +30,8 @@ def transcribe():
     end_time = request.form.get('end_time')
     logger.info(f"{source_type}, show_timestamps: {show_timestamps}, start_time: {start_time}, end_time: {end_time}")
 
+    yt_meta = None
+    upload_filepath = None
     try:
         if source_type == 'file':
             if 'audio_file' not in request.files:
@@ -52,13 +54,13 @@ def transcribe():
             if not youtube_url.startswith('https://www.youtube.com/'):
                 return jsonify({'error': 'Not YouTube URL'}), 400
 
-            upload_filepath = download_audio(youtube_url)
+            upload_filepath, yt_meta = download_audio(youtube_url)
             logger.info(f"downloaded audio: '{upload_filepath}'")
         else:
             logger.error(f"Invalid source_type: {source_type}")
             return jsonify({'error': 'Invalid input'}), 400
     except Exception as e:
-        logger.error(e)
+        logger.error(e, exc_info=True)
         return jsonify({'error': str(e)}), 500
 
     if start_time or end_time:
@@ -70,7 +72,8 @@ def transcribe():
     os.remove(upload_filepath)
 
     return jsonify(
-        {'message': 'Transcription completed', 'output_file': result_file, 'transcript': Path(result_file).read_text()})
+        {'message': 'Transcription completed', 'output_file': result_file, 'transcript': Path(result_file).read_text(),
+         'yt_meta': yt_meta})
 
 
 if __name__ == '__main__':

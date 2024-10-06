@@ -1,6 +1,7 @@
 import datetime
 import logging
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -14,22 +15,25 @@ logger = logging.getLogger(__name__)
 
 
 def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='wav', yt_preferredquality=None,
-                   yt_format=None) -> str:
+                   yt_format=None) -> tuple[str, dict]:
     """
     download audio from youtube link.
 
     downloads the whole audio (trimming is done only after).
     start_time, end_time: e.g. '00:00:30', '00:01:30'.
 
-    returns: filename
+    returns: filename, metadata
     """
-    title = yt_dlp.YoutubeDL().extract_info(youtube_url, download=False)['title']
+    yt_info_dict = yt_dlp.YoutubeDL().extract_info(youtube_url, download=False)
+    title = yt_info_dict.get('title', 'unknown_title')
+    sanitized = re.sub(r'[^\w\s-]', '_', title)
+    res_filename_no_ext = f"{TEMP_FILES_DIR}/{sanitized}"
+    res_filename = f"{res_filename_no_ext}.{post_ext}"
 
     # file already exists
-    prev_res_file_out = f"{TEMP_FILES_DIR}/{title}.{post_ext}"
-    if Path(prev_res_file_out).is_file():
-        logger.info(f"file '{prev_res_file_out}' already exists")
-        return prev_res_file_out
+    if Path(res_filename).is_file():
+        logger.info(f"file '{res_filename}' already exists")
+        return res_filename, get_info_from_result(yt_info_dict)[1]
 
     post_proc = [{
         'key': 'FFmpegExtractAudio',
@@ -40,7 +44,7 @@ def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='w
         'format': 'bestaudio/best',
         'noplaylist': True,
         'postprocessors': post_proc,
-        'outtmpl': f"{TEMP_FILES_DIR}/%(title)s.%(ext)s",
+        'outtmpl': res_filename_no_ext,
     }
 
     if yt_format:
@@ -48,27 +52,24 @@ def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='w
     if yt_preferredquality:  # e.g. '192'
         post_proc[0]['preferredquality'] = yt_preferredquality
 
-    logger.info(f"downloading audio from {youtube_url}...")
+    logger.info(f"downloading audio from {youtube_url} ({title})...")
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        # ydl.download([youtube_url])
         result = ydl.extract_info(youtube_url, download=True)
-        filename = ydl.prepare_filename(result)
 
-    # print(result)
-    filename = f"{TEMP_FILES_DIR}/{Path(filename).stem}.{post_ext}"
+    set_date_to_now(res_filename)
 
-    set_date_to_now(filename)
-
-    logger.info(f"{get_info_from_result(result)[0]}")
-    logger.info(f"file: '{Path(filename).resolve()}', size: {Path(filename).stat().st_size / 1024 ** 2:.2f} MB")  # actually MiB
+    info_str, meta = get_info_from_result(result)
+    file_path = Path(res_filename).resolve()
+    logger.info(info_str)
+    logger.info(f"file: '{file_path}', size: {file_path.stat().st_size / 1024 ** 2:.2f} MB")  # actually MiB
 
     # trim
     if start_time or end_time:
-        logger.info(f"trimming '{filename}' {start_time}-{end_time}...")
-        trimmed_filename = AudioEditor.audio_segment(filename, start_time, end_time, output_ext=post_ext)
-        return trimmed_filename
+        logger.info(f"trimming '{res_filename}' {start_time}-{end_time}...")
+        trimmed_filename = AudioEditor.audio_segment(res_filename, start_time, end_time, output_ext=post_ext)
+        return trimmed_filename, meta
 
-    return filename
+    return res_filename, meta
 
 
 def get_info_from_result(result: dict) -> tuple[str, dict]:
@@ -112,10 +113,6 @@ def get_info(youtube_url: str):
 
     result_str, meta = get_info_from_result(result)
     return result_str, meta
-
-
-def get_captions(youtube_url: str):
-    pass
 
 
 def set_date_to_now(filename):

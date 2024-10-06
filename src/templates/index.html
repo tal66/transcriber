@@ -76,6 +76,7 @@
 
     <div class="mt-4">
         <h4 class="pb-2">Transcript</h4>
+        <div id="youtubeInfo" class="mt-2 pb-2"><div id="youtubeTitle"></div> </div>
         <div class="card mb-4 pt-2 pb-2">
             <div id="transcriptContainer" class="card-body">
                 {{ transcript }}
@@ -161,7 +162,7 @@
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
-
+        const ytInfo = document.getElementById('youtubeInfo');
         const formData = new FormData(form);
         formData.append('source_type', sourceType.value);
 
@@ -176,9 +177,18 @@
                 if (data.error) {
                     resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                     transcriptContainer.innerHTML = '';
+                    ytInfo.innerHTML = '';
                 } else {
                     resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
                     transcriptContainer.innerText = data.transcript;
+
+                    if (data.yt_meta) {
+                        ytInfo.innerHTML = `
+                            <div>
+                                Title: <strong>${data.yt_meta.title}</strong>
+                            </div>
+                        `;
+                    }
                 }
             })
             .catch(error => {
