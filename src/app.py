@@ -6,13 +6,25 @@ from flask import Flask, render_template, request, jsonify
 from werkzeug.utils import secure_filename
 
 from src.settings import UPLOAD_DIR
-from src.youtube_util import download_audio
 from src.transcribe import transcribe_file, transcribe_file_segment
-
-app = Flask(__name__)
+from src.youtube_util import download_audio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# db
+DB_ENABLED = False
+try:
+    import src.db as db
+    db.client.admin.command('ping')
+    DB_ENABLED = True
+    logger.info("MongoDB enabled")
+except Exception as e:
+    db = None
+    logger.error("MongoDB disabled")
+    logger.error(e, exc_info=True)
+
+app = Flask(__name__)
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_DIR
 
@@ -30,7 +42,7 @@ def transcribe():
     end_time = request.form.get('end_time')
     logger.info(f"{source_type}, show_timestamps: {show_timestamps}, start_time: {start_time}, end_time: {end_time}")
 
-    yt_meta = None
+    meta = None
     upload_filepath = None
     try:
         if source_type == 'file':
@@ -46,6 +58,7 @@ def transcribe():
                 filename = secure_filename(file.filename)
                 upload_filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(upload_filepath)
+                meta = {'title': filename, 'src_type': 'file'}
 
         elif source_type == 'youtube':
             youtube_url = request.form.get('youtube_url')
@@ -54,7 +67,8 @@ def transcribe():
             if not youtube_url.startswith('https://www.youtube.com/'):
                 return jsonify({'error': 'Not YouTube URL'}), 400
 
-            upload_filepath, yt_meta = download_audio(youtube_url)
+            upload_filepath, meta = download_audio(youtube_url)
+            meta['src_type'] = 'youtube'
             logger.info(f"downloaded audio: '{upload_filepath}'")
         else:
             logger.error(f"Invalid source_type: {source_type}")
@@ -73,7 +87,48 @@ def transcribe():
 
     return jsonify(
         {'message': 'Transcription completed', 'output_file': result_file, 'transcript': Path(result_file).read_text(),
-         'yt_meta': yt_meta})
+         'meta': meta})
+
+
+@app.route('/save_transcript', methods=['POST'])
+def save_transcript_route():
+    if not DB_ENABLED:
+        return jsonify({'error': 'DB not enabled'}), 400
+
+    data = request.json
+    doc = {
+        'title': data.get('title'),
+        'content': data.get('content'),
+        'src_type': data.get('src_type'),
+    }
+
+    if not doc['content']:
+        return jsonify({'error': 'No transcript'}), 400
+
+    try:
+        transcript_id = db.save_transcript(doc)
+        logger.info(f"Saved transcript: {transcript_id}")
+        return jsonify({'message': 'Transcript saved', 'transcript_id': transcript_id})
+    except Exception as e:
+        logger.error(e, exc_info=True)
+        return jsonify({'error': 'Failed to save transcript'}), 500
+
+
+@app.route('/search_transcripts', methods=['GET'])
+def search_transcripts():
+    if not DB_ENABLED:
+        return jsonify({'error': 'DB not enabled'}), 400
+
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({'error': 'No search query provided'}), 400
+
+    try:
+        results = db.search_transcripts(query)
+        return jsonify({'results': results})
+    except Exception as e:
+        logger.error(e, exc_info=True)
+        return jsonify({'error': 'Failed to search transcripts'}), 500
 
 
 if __name__ == '__main__':

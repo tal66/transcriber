@@ -14,10 +14,17 @@ File: `transcribe.py`. Output example: [20s video](img/rt_sample.mp4)
 
 Files: `transcribe.py`, `youtube_util.py`. Possibly select start and end time. 
 
-Optional UI (served by flask) to get the transcript from a file or YouTube link, using `python -m src.app`. Takes few seconds for a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took 5 seconds:
+Optional UI (served by flask) using `python -m src.app` to: 
+- Get the transcript from a file or YouTube link, 
+- Text search the database (MongoDB). Note: stop words (like 'how', 'is', 'why') are not indexed. 
 
-<img src="./img/ui.png" width="600" height="435" alt="ui">
+Takes a few seconds for to transcribe a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took 5 seconds:
 
+<img src="./img/ui1.png" width="600" height="435" alt="ui">
+
+Search db results example:
+
+<img src="./img/ui2.png" width="550" height="210" alt="ui">
 
 ### Speaker diarization
 

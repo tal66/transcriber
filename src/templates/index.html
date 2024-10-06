@@ -24,19 +24,20 @@
         }
     </style>
 </head>
-<body>
-<div class="container mt-5">
-    <h1 class="mb-4">Transcribe Audio</h1>
+<body class="pb-5">
+
+<div class="container mt-5 col-8">
+    <h2 class="mb-4">Transcribe Audio</h2>
 
     <form id="transcriptionForm" class="col-7">
         <div class="mb-3">
             <label for="sourceType" class="form-label">Source Type</label>
             <select class="form-select rounded-3" id="sourceType" size="2">
-                <option class="p-1" selected value="file">File Upload</option>
-                <option class="p-1" value="youtube">YouTube URL</option>
+                <option class="p-1" value="file">File Upload</option>
+                <option class="p-1" selected value="youtube">YouTube URL</option>
             </select>
         </div>
-        <div id="fileUploadSection" class="mb-3">
+        <div id="fileUploadSection" class="mb-3 d-none">
             <label for="audioFile" class="form-label">Audio File</label>
             <div id="dragDropZone" class="drag-drop-zone">
                 <p>Drag & drop audio file here, or click to select</p>
@@ -44,7 +45,7 @@
             </div>
             <p id="selectedFileName" class="mt-2"></p>
         </div>
-        <div id="youtubeUrlSection" class="mb-3 d-none">
+        <div id="youtubeUrlSection" class="mb-3">
             <label for="youtubeUrl" class="form-label">YouTube URL</label>
             <input type="url" class="form-control" id="youtubeUrl" name="youtube_url"
                    placeholder="https://www.youtube.com/watch?v=...">
@@ -56,13 +57,16 @@
             <input type="checkbox" class="form-check-input" id="showTimestamps" name="show_timestamps">
             <label class="form-check-label" for="showTimestamps">Show Timestamps</label>
         </div>
-        <div class="mb-3">
-            <label for="startTime" class="form-label">Start Time (optional)</label>
-            <input type="text" class="form-control" id="startTime" name="start_time" placeholder="HH:MM:SS or MM:SS">
-        </div>
-        <div class="mb-3">
-            <label for="endTime" class="form-label">End Time (optional)</label>
-            <input type="text" class="form-control" id="endTime" name="end_time" placeholder="HH:MM:SS or MM:SS">
+        <div class="row">
+            <div class="mb-3 col">
+                <label for="startTime" class="form-label">Start Time (optional)</label>
+                <input type="text" class="form-control" id="startTime" name="start_time"
+                       placeholder="HH:MM:SS or MM:SS">
+            </div>
+            <div class="mb-3 col">
+                <label for="endTime" class="form-label">End Time (optional)</label>
+                <input type="text" class="form-control" id="endTime" name="end_time" placeholder="HH:MM:SS or MM:SS">
+            </div>
         </div>
 
         <button type="submit" class="btn btn-primary">Transcribe</button>
@@ -74,14 +78,27 @@
         {% endif %}
     </div>
 
-    <div class="mt-4">
+    <div class="mt-4 mb-2">
         <h4 class="pb-2">Transcript</h4>
-        <div id="youtubeInfo" class="mt-2 pb-2"><div id="youtubeTitle"></div> </div>
-        <div class="card mb-4 pt-2 pb-2">
+        <div id="transcriptInfo" class="mt-2 pb-2">
+            <div id="transcriptTitle"></div>
+        </div>
+        <div class="card mb-4 p-2 col-10">
             <div id="transcriptContainer" class="card-body">
                 {{ transcript }}
             </div>
         </div>
+        <button id="saveTranscriptBtn" class="btn btn-success d-none mb-3">Save To DB</button>
+    </div>
+
+
+    <div class="mt-3 mb-5 col-10">
+        <h3 class="mb-3">Search Transcripts</h3>
+        <div class="input-group mb-3 col-8">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search transcripts...">
+            <button class="btn btn-outline-secondary" type="button" id="searchButton">Search</button>
+        </div>
+        <div id="searchResults" class="mt-3"></div>
     </div>
 
 </div>
@@ -101,6 +118,12 @@
     const dragDropZone = document.getElementById('dragDropZone');
     const audioFileInput = document.getElementById('audioFile');
     const selectedFileName = document.getElementById('selectedFileName');
+    const saveTranscriptBtn = document.getElementById('saveTranscriptBtn');
+    const transcriptTitle = document.getElementById('transcriptTitle');
+
+    const searchInput = document.getElementById('searchInput');
+    const searchButton = document.getElementById('searchButton');
+    const searchResults = document.getElementById('searchResults');
 
     sourceType.addEventListener('change', function () {
         if (this.value === 'file') {
@@ -158,13 +181,14 @@
         }
     }
 
-    //
+    // submit
 
     form.addEventListener('submit', function (e) {
         e.preventDefault();
-        const ytInfo = document.getElementById('youtubeInfo');
+
         const formData = new FormData(form);
         formData.append('source_type', sourceType.value);
+        saveTranscriptBtn.classList.add('d-none');
 
         resultDiv.innerHTML = '<div class="alert alert-info">Transcription request submitted. Processing...</div>';
 
@@ -177,18 +201,16 @@
                 if (data.error) {
                     resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                     transcriptContainer.innerHTML = '';
-                    ytInfo.innerHTML = '';
+                    transcriptTitle.innerHTML = '';
                 } else {
                     resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
                     transcriptContainer.innerText = data.transcript;
 
-                    if (data.yt_meta) {
-                        ytInfo.innerHTML = `
-                            <div>
-                                Title: <strong>${data.yt_meta.title}</strong>
-                            </div>
-                        `;
+                    if (data.meta) {
+                        transcriptTitle.innerHTML = `<strong>${data.meta.title}</strong>`;
                     }
+                    saveTranscriptBtn.classList.remove('d-none');
+                    saveTranscriptBtn.disabled = false;
                 }
             })
             .catch(error => {
@@ -196,7 +218,82 @@
                 transcriptContainer.innerHTML = '';
             });
     });
-    // });
+
+    // save
+
+    saveTranscriptBtn.addEventListener('click', function () {
+        const title = transcriptTitle.textContent || 'Untitled';
+        const content = transcriptContainer.textContent;
+        const src_type = sourceType.value;
+
+
+        fetch('/save_transcript', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({title: title, content: content, src_type: src_type})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+                resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                saveTranscriptBtn.disabled = true;
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${error}</div>`;
+            });
+    });
+
+    // search
+
+    function performSearch() {
+        const query = searchInput.value.trim();
+        if (!query) {
+            return;
+        }
+
+        fetch(`/search_transcripts?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                displaySearchResults(data.results);
+            })
+            .catch(error => {
+                searchResults.innerHTML = `<div class="alert alert-danger">Error searching transcripts: ${error.message}</div>`;
+            });
+    }
+
+    searchButton.addEventListener('click', performSearch);
+
+    function displaySearchResults(results) {
+        if (results.length === 0) {
+            searchResults.innerHTML = '<p>No results found.</p>';
+            return;
+        }
+
+        let resultsHtml = '<ul class="list-group">';
+        results.forEach(result => {
+            resultsHtml += `
+                        <li class="list-group-item">
+                            <h5>${result.title}</h5>
+                            <p>${result.content.substring(0, 200)}...</p>
+                        </li>
+                    `;
+        });
+        resultsHtml += '</ul>';
+        searchResults.innerHTML = resultsHtml;
+    }
+
+    // Enter
+    searchInput.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter') {
+            performSearch();
+        }
+    })
+
 </script>
 </body>
 </html>
