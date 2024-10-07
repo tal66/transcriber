@@ -22,6 +22,14 @@
             background-color: #f8f9fa;
             border-color: #0d6efd;
         }
+
+        .search-result-title {
+            cursor: pointer;
+        }
+
+        .editable {
+            cursor: text;
+        }
     </style>
 </head>
 <body class="pb-5">
@@ -78,26 +86,33 @@
         {% endif %}
     </div>
 
+    <!--  transcript  -->
     <div class="mt-4 mb-2">
-        <h4 class="pb-2">Transcript</h4>
+        <h4 id="transcriptHeader" class="pb-2">Transcript</h4>
         <div id="transcriptInfo" class="mt-2 pb-2">
             <div id="transcriptTitle"></div>
+            <div id="transcriptChannel"></div>
         </div>
-        <div class="card mb-4 p-2 col-10">
-            <div id="transcriptContainer" class="card-body">
+        <div class="card mb-2 p-2 col-10">
+            <div id="transcriptContainer" class="card-body" contenteditable="false">
                 {{ transcript }}
             </div>
         </div>
+        <p class="form-text">Double click to edit</p>
         <button id="saveTranscriptBtn" class="btn btn-success d-none mb-3">Save To DB</button>
+        <button id="updateTranscriptBtn" class="btn btn-primary d-none mb-3">Update</button>
     </div>
 
-
+    <!--  search  -->
     <div class="mt-3 mb-5 col-10">
-        <h3 class="mb-3">Search Transcripts</h3>
-        <div class="input-group mb-3 col-8">
-            <input type="text" id="searchInput" class="form-control" placeholder="Search transcripts...">
-            <button class="btn btn-outline-secondary" type="button" id="searchButton">Search</button>
-        </div>
+        <h3 class="mb-3">Search Transcripts <span id="upToTranscriptBtn" class="h6 p-2 d-none"><a
+                href="#transcriptHeader"><i class="bi bi-arrow-up"></i></a></span></h3>
+        <form id="searchForm" class="input-group mb-3 col-8">
+            <label for="searchInput" class="visually-hidden">Search transcripts</label>
+            <input type="text" id="searchInput" name="search_input" class="form-control"
+                   placeholder="Search transcripts...">
+            <button class="btn btn-outline-secondary" type="submit" id="searchButton">Search</button>
+        </form>
         <div id="searchResults" class="mt-3"></div>
     </div>
 
@@ -108,7 +123,7 @@
         crossorigin="anonymous"></script>
 
 <script>
-    const form = document.getElementById('transcriptionForm');
+    const transcriptForm = document.getElementById('transcriptionForm');
     const sourceType = document.getElementById('sourceType');
     const fileUploadSection = document.getElementById('fileUploadSection');
     const youtubeUrlSection = document.getElementById('youtubeUrlSection');
@@ -119,11 +134,17 @@
     const audioFileInput = document.getElementById('audioFile');
     const selectedFileName = document.getElementById('selectedFileName');
     const saveTranscriptBtn = document.getElementById('saveTranscriptBtn');
+    const updateTranscriptBtn = document.getElementById('updateTranscriptBtn');
     const transcriptTitle = document.getElementById('transcriptTitle');
+    const transcriptChannel = document.getElementById('transcriptChannel');
 
+    const searchForm = document.getElementById('searchForm');
     const searchInput = document.getElementById('searchInput');
-    const searchButton = document.getElementById('searchButton');
     const searchResults = document.getElementById('searchResults');
+    const upToTranscriptBtn = document.getElementById('upToTranscriptBtn');
+
+    let isEditing = false;
+    let currTranscriptId = null;
 
     sourceType.addEventListener('change', function () {
         if (this.value === 'file') {
@@ -136,6 +157,7 @@
     });
 
     // drag and drop
+
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dragDropZone.addEventListener(eventName, preventDefaults, false);
     });
@@ -183,16 +205,19 @@
 
     // submit
 
-    form.addEventListener('submit', function (e) {
+    transcriptForm.addEventListener('submit', function (e) {
         e.preventDefault();
 
-        const formData = new FormData(form);
+        const formData = new FormData(transcriptForm);
         formData.append('source_type', sourceType.value);
         saveTranscriptBtn.classList.add('d-none');
+        updateTranscriptBtn.classList.add('d-none');
+        currTranscriptId = null;
+        transcriptContainer.innerHTML = '';
 
         resultDiv.innerHTML = '<div class="alert alert-info">Transcription request submitted. Processing...</div>';
 
-        fetch('/transcribe', {
+        fetch('/transcriptions/input-files', {
             method: 'POST',
             body: formData
         })
@@ -202,15 +227,22 @@
                     resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
                     transcriptContainer.innerHTML = '';
                     transcriptTitle.innerHTML = '';
+                    transcriptChannel.innerHTML = '';
                 } else {
                     resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
                     transcriptContainer.innerText = data.transcript;
 
                     if (data.meta) {
                         transcriptTitle.innerHTML = `<strong>${data.meta.title}</strong>`;
+                        if (data.meta.channel) {
+                            transcriptChannel.innerHTML = data.meta.channel;
+                        } else {
+                            transcriptChannel.innerHTML = '';
+                        }
                     }
                     saveTranscriptBtn.classList.remove('d-none');
                     saveTranscriptBtn.disabled = false;
+
                 }
             })
             .catch(error => {
@@ -222,17 +254,24 @@
     // save
 
     saveTranscriptBtn.addEventListener('click', function () {
-        const title = transcriptTitle.textContent || 'Untitled';
-        const content = transcriptContainer.textContent;
+        const title = transcriptTitle.innerText || 'Untitled';
+        const channel = transcriptChannel.innerText;
+        const content = transcriptContainer.innerText;
         const src_type = sourceType.value;
 
+        if (isEditing) {
+            transcriptContainer.blur();
+        }
 
-        fetch('/save_transcript', {
+        let body = {title: title, content: content, src_type: src_type};
+        if (channel != null) {
+            body.channel = channel;
+        }
+
+        fetch('/transcriptions', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({title: title, content: content, src_type: src_type})
+            headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify(body)
         })
             .then(response => response.json())
             .then(data => {
@@ -242,6 +281,7 @@
                 }
                 resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
                 saveTranscriptBtn.disabled = true;
+                currTranscriptId = data.id;
             })
             .catch(error => {
                 resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${error}</div>`;
@@ -249,14 +289,20 @@
     });
 
     // search
+    searchForm.addEventListener('submit', e => {
+        e.preventDefault();
+        performSearch();
+    });
 
     function performSearch() {
+        updateTranscriptBtn.classList.add('d-none');
+
         const query = searchInput.value.trim();
         if (!query) {
             return;
         }
 
-        fetch(`/search_transcripts?query=${encodeURIComponent(query)}`)
+        fetch(`/search/transcripts?query=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
                 displaySearchResults(data.results);
@@ -266,9 +312,8 @@
             });
     }
 
-    searchButton.addEventListener('click', performSearch);
-
     function displaySearchResults(results) {
+
         if (results.length === 0) {
             searchResults.innerHTML = '<p>No results found.</p>';
             return;
@@ -278,21 +323,106 @@
         results.forEach(result => {
             resultsHtml += `
                         <li class="list-group-item">
-                            <h5>${result.title}</h5>
+                            <h5 id=${result.id} class="search-result-title">${result.title}</h5>
                             <p>${result.content.substring(0, 200)}...</p>
                         </li>
                     `;
         });
         resultsHtml += '</ul>';
         searchResults.innerHTML = resultsHtml;
+
+        // listener on result titles
+        let searchResultTitles = document.getElementsByClassName('search-result-title');
+        addListenerToResultTitles(searchResultTitles);
     }
 
-    // Enter
-    searchInput.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter') {
-            performSearch();
+
+    // fetch doc from search result
+    function addListenerToResultTitles(searchResultTitles) {
+        for (let i = 0; i < searchResultTitles.length; i++) {
+            searchResultTitles[i].addEventListener('click', function () {
+                const id = this.id;
+                getRecord(id);
+                upToTranscriptBtn.classList.remove('d-none'); // navigation up (for long transcripts)
+            });
         }
-    })
+    }
+
+    function getRecord(id) {
+        fetch(`/transcriptions?id=${id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data || data.error) {
+                    searchResults.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+
+                transcriptTitle.innerHTML = `<strong>${data.title}</strong>`;
+                transcriptContainer.innerText = data.content;
+
+                currTranscriptId = id;
+                // console.log(currTranscriptId);
+            })
+            .catch(error => {
+                searchResults.innerHTML = `<div class="alert alert-danger">Error fetching transcript: ${error}</div>`;
+            });
+    }
+
+    // Edit
+
+    updateTranscriptBtn.addEventListener('click', function () {
+        if (currTranscriptId === null) {
+            resultDiv.innerHTML = `<div class="alert alert-danger">No transcript_id</div>`;
+            return;
+        }
+
+        const content = transcriptContainer.innerText.replace(/\n{2,}/g, '\n\n');
+
+        if (isEditing) {
+            transcriptContainer.blur();
+        }
+
+        fetch(`/transcriptions?id=${currTranscriptId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify({content: content})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    resultDiv.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                    return;
+                }
+
+                resultDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                updateTranscriptBtn.classList.add('d-none');
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<div class="alert alert-danger">Error: ${error}</div>`;
+            });
+    });
+
+    transcriptContainer.addEventListener('dblclick', function () {
+        if (!isEditing) {
+            this.contentEditable = true;
+            this.classList.add('editable');
+            this.focus();
+            isEditing = true;
+            updateTranscriptBtn.classList.add('d-none');
+        }
+    });
+
+    transcriptContainer.addEventListener('blur', function () {
+        if (isEditing) {
+            this.contentEditable = false;
+            this.classList.remove('editable');
+            isEditing = false;
+            if (currTranscriptId !== null) {
+                updateTranscriptBtn.classList.remove('d-none');
+            }
+        }
+    });
+
 
 </script>
 </body>

@@ -1,5 +1,6 @@
 import logging
 
+from bson import ObjectId
 from pymongo import MongoClient
 from src.settings import CONN_STRING
 
@@ -21,7 +22,9 @@ def save_transcript(doc: dict):
 
 
 def get_transcript(transcript_id: str):
-    res = transcripts_collection.find_one({'_id': transcript_id})
+    res = transcripts_collection.find_one({'_id': ObjectId(transcript_id)})
+    res['id'] = str(res['_id'])
+    del res['_id']
     return res
 
 
@@ -33,3 +36,10 @@ def search_transcripts(query):
     docs = [{'id': str(doc['_id']), 'title': doc['title'], 'content': doc['content'],
              'src_type': doc.get('src_type', 'unknown')} for doc in results]
     return docs
+
+
+def update_transcript(id, doc):
+    # update just the content
+    result = transcripts_collection.update_one({'_id': ObjectId(id)}, {'$set': {'content': doc['content']}})
+    logger.info(f"updated transcript: {result.modified_count}")
+    return result.modified_count
