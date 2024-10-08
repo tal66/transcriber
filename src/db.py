@@ -14,6 +14,8 @@ transcripts_collection = db['transcripts']
 transcripts_collection.create_index([('title', 'text'), ('content', 'text')])
 logger.info("connected to MongoDB")
 
+NUM_TEXT_RESULTS_LIMIT = 15
+
 
 def save_transcript(doc: dict):
     result = transcripts_collection.insert_one(doc)
@@ -31,7 +33,7 @@ def get_transcript(transcript_id: str):
 def search_transcripts(query):
     results = transcripts_collection.find(
         {'$text': {'$search': query}}, {'score': {'$meta': 'textScore'}}
-    ).sort([('score', {'$meta': 'textScore'})]).limit(10)
+    ).sort([('score', {'$meta': 'textScore'})]).limit(NUM_TEXT_RESULTS_LIMIT)
 
     docs = [{'id': str(doc['_id']), 'title': doc['title'], 'content': doc['content'],
              'src_type': doc.get('src_type', 'unknown')} for doc in results]

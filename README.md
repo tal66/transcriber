@@ -15,8 +15,9 @@ File: `transcribe.py`. Output example: [20s video](img/rt_sample.mp4)
 Files: `transcribe.py`, `youtube_util.py`. Possibly select start and end time. 
 
 Optional UI (served by flask) using `python -m src.app` to: 
-- Get the transcript from a file or YouTube link, 
-- Text search the database (MongoDB). Note: stop words (like 'how', 'is', 'why') are not indexed. 
+- Prepare transcript from a YouTube link or a file.
+- Text search the database (MongoDB) of transcripts. Note: stop words (like 'how', 'is', 'why') are not indexed.
+- Edit saved transcripts.
 
 Takes a few seconds for to transcribe a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took 5 seconds:
 
@@ -38,9 +39,10 @@ SPEAKER_03:  Welcome. I just agreed to this last minute, as you know.
 
 ## Settings and dependencies
 
-Install and read the instructions for [torch](https://pytorch.org/), [pyannote](https://github.com/pyannote/pyannote-audio) (for separating speakers - hugging face token required), and install the other requirements.
+Install and read the instructions for [torch](https://pytorch.org/), [pyannote](https://github.com/pyannote/pyannote-audio) (for separating speakers. hugging face token required), and install the other requirements.
 
-Set device ID's in `settings.py` (helper functions are in `audio_util.py`).
+Set device ID's in `settings.py` in order to record audio (helper functions are in `audio_util.py`).
+
+For real-time transcription - there are probably better ways, but it works surprisingly well for short and fast transcriptions.
 
 The model may hallucinate a bit, and be non-deterministic. 
-

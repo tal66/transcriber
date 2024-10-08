@@ -4,6 +4,7 @@ import os
 import re
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import yt_dlp
 
@@ -14,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(funcName)s - %(l
 logger = logging.getLogger(__name__)
 
 
-def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='wav', yt_preferredquality=None,
+def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='mp3', yt_preferredquality=None,
                    yt_format=None) -> tuple[str, dict]:
     """
     download audio from youtube link.
@@ -24,9 +25,18 @@ def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='w
 
     returns: filename, metadata
     """
+    if not youtube_url.startswith('https://www.youtube.com/shorts'):
+        # remove all query params other than 'v'
+        # (don't download playlist, or require editing the url. not aware of other query params needed)
+        query = parse_qs(urlparse(youtube_url).query)
+        if len(query) > 1:
+            video_id = query.get('v', [''])[0]
+            youtube_url = f"https://www.youtube.com/watch?v={video_id}"
+            logger.info(f"removed redundant query params")
+
     yt_info_dict = yt_dlp.YoutubeDL().extract_info(youtube_url, download=False)
     title = yt_info_dict.get('title', 'unknown_title')
-    sanitized = re.sub(r'[^\w\s-]', '_', title)
+    sanitized = re.sub(r'[^\w\s\-\(\)\[\]]', '_', title)
     res_filename_no_ext = f"{TEMP_FILES_DIR}/{sanitized}"
     res_filename = f"{res_filename_no_ext}.{post_ext}"
 
@@ -42,7 +52,7 @@ def download_audio(youtube_url: str, start_time=None, end_time=None, post_ext='w
 
     ydl_opts = {
         'format': 'bestaudio/best',
-        'noplaylist': True,
+        'noplaylist': True,  # yt ignores playlist only for info, not for download
         'postprocessors': post_proc,
         'outtmpl': res_filename_no_ext,
     }

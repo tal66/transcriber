@@ -94,11 +94,11 @@
             <div id="transcriptChannel"></div>
         </div>
         <div class="card mb-2 p-2 col-10">
-            <div id="transcriptContainer" class="card-body" contenteditable="false">
+            <div id="transcriptContainer" class="card-body p-4 pt-3" contenteditable="false">
                 {{ transcript }}
             </div>
         </div>
-        <p class="form-text">Double click to edit</p>
+        <p id="transcriptEditHelperBox" class="form-text">Double click to edit</p>
         <button id="saveTranscriptBtn" class="btn btn-success d-none mb-3">Save To DB</button>
         <button id="updateTranscriptBtn" class="btn btn-primary d-none mb-3">Update</button>
     </div>
@@ -142,6 +142,7 @@
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
     const upToTranscriptBtn = document.getElementById('upToTranscriptBtn');
+    const transcriptEditHelperBox = document.getElementById('transcriptEditHelperBox');
 
     let isEditing = false;
     let currTranscriptId = null;
@@ -214,6 +215,8 @@
         updateTranscriptBtn.classList.add('d-none');
         currTranscriptId = null;
         transcriptContainer.innerHTML = '';
+        transcriptTitle.innerHTML = '';
+        transcriptChannel.innerHTML = '';
 
         resultDiv.innerHTML = '<div class="alert alert-info">Transcription request submitted. Processing...</div>';
 
@@ -358,6 +361,7 @@
                 }
 
                 transcriptTitle.innerHTML = `<strong>${data.title}</strong>`;
+                transcriptChannel.innerHTML = data.channel || '';
                 transcriptContainer.innerText = data.content;
 
                 currTranscriptId = id;
@@ -409,6 +413,7 @@
             this.focus();
             isEditing = true;
             updateTranscriptBtn.classList.add('d-none');
+            transcriptEditHelperBox.textContent = 'Unfocus to save';
         }
     });
 
@@ -420,6 +425,7 @@
             if (currTranscriptId !== null) {
                 updateTranscriptBtn.classList.remove('d-none');
             }
+            transcriptEditHelperBox.textContent = 'Double click to edit';
         }
     });
 
