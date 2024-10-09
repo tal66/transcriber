@@ -3,13 +3,6 @@
 
 Transcribe audio to text (using whisper). Runs locally.
 
-### Real Time
-
-File: `transcribe.py`. Output example: [20s video](img/rt_sample.mp4)
-
-<img src="./img/rt_img.png" width="500" height="350" alt="ui">
-
-
 ### YouTube / File
 
 Files: `transcribe.py`, `youtube_util.py`. Possibly select start and end time. 
@@ -21,11 +14,14 @@ Optional UI (served by flask) using `python -m src.app` to:
 
 Takes a few seconds for to transcribe a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took 5 seconds:
 
-<img src="./img/ui1.png" width="600" height="435" alt="ui">
+<img src="./img/ui.png" width="660" height="360" alt="ui">
 
-Search db results example:
+### Real Time
 
-<img src="./img/ui2.png" width="550" height="210" alt="ui">
+File: `transcribe.py`. Output example: [20s video](img/rt_sample.mp4)
+
+<img src="./img/rt_img.png" width="530" height="340" alt="ui">
+
 
 ### Speaker diarization
 
