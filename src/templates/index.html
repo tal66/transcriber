@@ -110,6 +110,12 @@
         #transcriptContainer {
             max-height: 500px;
             overflow-y: auto;
+            padding-right: 13px;
+            padding-bottom: 15px;
+        }
+
+        #trCardBody {
+            padding-left: 1.6rem;
         }
 
         /* Smooth scrolling for the entire page */
@@ -119,8 +125,12 @@
 
         /* Animation for new content */
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
 
         .fade-in {
@@ -131,7 +141,7 @@
             font-size: 0.8rem;
         }
 
-        #searchButton{
+        #searchButton {
             padding: 10px;
         }
     </style>
@@ -157,13 +167,15 @@
                     <div id="dragDropZone" class="drag-drop-zone">
                         <i class="bi bi-cloud-upload fs-1 mb-2"></i>
                         <p>Drag & drop audio file here, or click to select</p>
-                        <input type="file" class="form-control d-none" id="audioFile" name="audio_file" accept="audio/*">
+                        <input type="file" class="form-control d-none" id="audioFile" name="audio_file"
+                               accept="audio/*">
                     </div>
                     <p id="selectedFileName" class="mt-2"></p>
                 </div>
                 <div id="youtubeUrlSection" class="mb-3">
                     <label for="youtubeUrl" class="form-label">YouTube URL</label>
-                    <input type="url" class="form-control" id="youtubeUrl" name="youtube_url" placeholder="https://www.youtube.com/watch?v=...">
+                    <input type="url" class="form-control" id="youtubeUrl" name="youtube_url"
+                           placeholder="https://www.youtube.com/watch?v=...">
                 </div>
                 <div class="mb-3">
                     <label class="form-label">Optional Settings</label>
@@ -175,11 +187,13 @@
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="startTime" class="form-label">Start Time (optional)</label>
-                        <input type="text" class="form-control" id="startTime" name="start_time" placeholder="HH:MM:SS or MM:SS">
+                        <input type="text" class="form-control" id="startTime" name="start_time"
+                               placeholder="HH:MM:SS or MM:SS">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="endTime" class="form-label">End Time (optional)</label>
-                        <input type="text" class="form-control" id="endTime" name="end_time" placeholder="HH:MM:SS or MM:SS">
+                        <input type="text" class="form-control" id="endTime" name="end_time"
+                               placeholder="HH:MM:SS or MM:SS">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Transcribe</button>
@@ -188,7 +202,7 @@
             <div id="result" class="mb-4"></div>
 
             <div class="card mb-5">
-                <div class="card-body">
+                <div class="card-body" id="trCardBody">
                     <h6 id="transcriptHeader" class="card-title">Transcript</h6>
                     <div id="transcriptInfo" class="mb-3">
                         <h6 id="transcriptTitle" class="card-subtitle mb-2 text-muted"></h6>
@@ -205,20 +219,21 @@
         </div>
 
         <div class="col-lg-4">
-<!--            <div class="sticky-top" style="top: 2rem;">-->
-                <h3 class="mb-4">Search Transcripts <span id="upToTranscriptBtn" class="h6 p-2 d-none">
+            <!--            <div class="sticky-top" style="top: 2rem;">-->
+            <h3 class="mb-4">Search Transcripts <span id="upToTranscriptBtn" class="h6 p-2 d-none">
                     <a href="#transcriptHeader">
                         <i class="bi bi-arrow-right"></i>
                     </a></span></h3>
-                <form id="searchForm" class="mb-3">
-                    <label for="searchInput" class="form-label">Search</label>
-                    <div class="input-group">
-                        <input type="text" id="searchInput" name="search_input" class="form-control" placeholder="Search transcripts...">
-                        <button class="btn btn-outline-primary" type="submit" id="searchButton">Search</button>
-                    </div>
-                </form>
-                <div id="searchResults"></div>
-<!--            </div>-->
+            <form id="searchForm" class="mb-3">
+                <label for="searchInput" class="form-label">Search</label>
+                <div class="input-group">
+                    <input type="text" id="searchInput" name="search_input" class="form-control"
+                           placeholder="Search transcripts...">
+                    <button class="btn btn-outline-primary" type="submit" id="searchButton">Search</button>
+                </div>
+            </form>
+            <div id="searchResults"></div>
+            <!--            </div>-->
         </div>
     </div>
 </div>

@@ -12,15 +12,15 @@ Optional UI (served by flask) using `python -m src.app` to:
 - Text search the database (MongoDB) of transcripts. Note: stop words (like 'how', 'is', 'why') are not indexed.
 - Edit saved transcripts.
 
-Takes a few seconds for to transcribe a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took 5 seconds:
+Takes a few seconds for to transcribe a few minutes of audio, for example [this song](https://www.youtube.com/watch?v=tI-5uv4wryI) took less than 5 seconds on my pc using cuda:
 
 <img src="./img/ui.png" width="660" height="360" alt="ui">
 
 ### Real Time
 
-File: `transcribe.py`. Output example: [20s video](img/rt_sample.mp4)
+File: `transcribe.py`. Output example:
 
-<img src="./img/rt_img.png" width="530" height="340" alt="ui">
+<img src="./img/rt_img.png" width="490" height="340" alt="ui">
 
 
 ### Speaker diarization

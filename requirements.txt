@@ -1,8 +1,0 @@
-openai-whisper
-sounddevice
-soundfile
-pydub
-yt-dlp
-Flask
-pymongo
-pyannote.audio

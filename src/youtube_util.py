@@ -102,8 +102,8 @@ def get_info_from_result(result: dict) -> tuple[str, dict]:
         meta['chapters'] = chapters
 
     # str
-    result_str = f"{meta['title']}"
-    result_str += f", {meta['duration']}"
+    result_str = f"Title: {meta['title']}"
+    result_str += f", duration: {meta['duration']}"
     result_str += f"\nChannel: {meta['channel']}"
     if 'chapters' in meta:
         result_str += f"\nChapters:\n{'\n'.join(meta['chapters'])}"
