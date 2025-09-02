@@ -341,7 +341,7 @@
 
         resultDiv.innerHTML = '<div class="alert alert-info">Transcription request submitted. Processing...</div>';
 
-        fetch('/transcriptions/input-files', {
+        fetch('/transcribe', {
             method: 'POST',
             body: formData
         })
@@ -392,7 +392,7 @@
             body.channel = channel;
         }
 
-        fetch('/transcriptions', {
+        fetch('/transcripts', {
             method: 'POST',
             headers: {'Content-Type': 'application/json',},
             body: JSON.stringify(body)
@@ -425,7 +425,7 @@
             return;
         }
 
-        fetch(`/search/transcripts?query=${encodeURIComponent(query)}`)
+        fetch(`/transcripts/search?query=${encodeURIComponent(query)}`)
             .then(response => response.json())
             .then(data => {
                 displaySearchResults(data.results);
@@ -472,7 +472,7 @@
     }
 
     function getRecord(id) {
-        fetch(`/transcriptions?id=${id}`)
+        fetch(`/transcripts/${id}`)
             .then(response => response.json())
             .then(data => {
                 if (!data || data.error) {
@@ -506,7 +506,7 @@
             transcriptContainer.blur();
         }
 
-        fetch(`/transcriptions?id=${currTranscriptId}`, {
+        fetch(`/transcripts/${currTranscriptId}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json',},
             body: JSON.stringify({content: content})

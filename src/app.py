@@ -34,7 +34,7 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/transcriptions/input-files', methods=['POST'])
+@app.route('/transcribe', methods=['POST'])
 def transcribe():
     source_type = request.form['source_type']
     show_timestamps = request.form.get('show_timestamps') == 'on'
@@ -91,7 +91,7 @@ def transcribe():
          'meta': meta})
 
 
-@app.route('/transcriptions', methods=['POST'])
+@app.route('/transcripts', methods=['POST'])
 def save_transcript():
     if not DB_ENABLED:
         return jsonify({'error': 'DB not enabled'}), 400
@@ -118,28 +118,29 @@ def save_transcript():
         return jsonify({'error': 'Failed to save transcript'}), 500
 
 
-@app.route('/transcriptions', methods=['GET'])
-def get_transcript():
-    transcript_id = request.args.get('id')
-    if not transcript_id:
-        return jsonify({'error': 'No transcript_id provided'}), 400
+@app.route('/transcripts/<transcript_id>', methods=['GET'])
+def get_transcript(transcript_id):
+    if not DB_ENABLED:
+        return jsonify({'error': 'DB not enabled'}), 400
 
     try:
         res = db.get_transcript(transcript_id)
-        return jsonify(res)
+        if res:
+            return jsonify(res)
+        return jsonify({'error': 'Transcript not found'}), 404
     except Exception as e:
         logger.error(e, exc_info=True)
         return jsonify({'error': 'Failed to get transcript'}), 500
 
 
-@app.route('/search/transcripts', methods=['GET'])
+@app.route('/transcripts/search', methods=['GET'])
 def search_transcripts():
     if not DB_ENABLED:
         return jsonify({'error': 'DB not enabled'}), 400
 
     query = request.args.get('query', '')
     if not query:
-        return jsonify({'error': 'No search query provided'}), 400
+        return jsonify({'results': []})
 
     try:
         results = db.search_transcripts(query)
@@ -149,26 +150,25 @@ def search_transcripts():
         return jsonify({'error': 'Failed to search transcripts'}), 500
 
 
-@app.route('/transcriptions', methods=['PUT'])
-def update_transcript():
+@app.route('/transcripts/<transcript_id>', methods=['PUT'])
+def update_transcript(transcript_id):
     if not DB_ENABLED:
         return jsonify({'error': 'DB not enabled'}), 400
 
     data = request.json
-    id = request.args.get('id')
-    if not id:
-        return jsonify({'error': 'No transcript_id provided'}), 400
-
-    if not data.get('content'):
-        return jsonify({'error': 'No transcript'}), 400
+    if not data or not data.get('content'):
+        return jsonify({'error': 'No transcript content provided'}), 400
 
     doc = {
         'content': data.get('content'),
     }
 
     try:
-        res = db.update_transcript(id, doc)
-        return jsonify({'message': f'Updated {res} transcript'})
+        res = db.update_transcript(transcript_id, doc)
+        if res > 0:
+            return jsonify({'message': f'Updated {res} transcript'})
+        else:
+            return jsonify({'error': 'Transcript not found or not updated'}), 404
     except Exception as e:
         logger.error(e, exc_info=True)
         return jsonify({'error': 'Failed to update transcript'}), 500
